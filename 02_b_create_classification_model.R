@@ -1,3 +1,6 @@
+library(parsnip)
+library(yardstick)
+
 # Create classification model
 glm_recipe <- recipe(ad_tot_price ~. , data = finn_train_raw) %>% 
   step_mutate(ad_home_type  = fct_lump(ad_home_type, 4),
@@ -20,10 +23,20 @@ glm_mod <- logistic_reg() %>%
     + ad_home_type
     + ad_bedrooms
     + ad_sqm
+    + ad_sqm_use
     + ad_expense
     + avg_income
     + ad_built
-    + bedrooms_missing,
+    + bedrooms_missing
+    + fylke_name
+    + ad_floor
+    + ad_energy
+    + ad_garage
+    + ad_balcony
+    + ad_elevator
+    + ad_view
+    + ad_garden
+    + ad_fireplace,
     data = finn_train
   )
 
@@ -32,8 +45,8 @@ summary(glm_mod$fit)
 
 prediction <- predict(glm_mod, finn_test, type = "prob") %>% 
   bind_cols(finn_test) %>% 
-  rename(estimate     = .pred_TRUE, 
-         truth        = is_expensive)
+  dplyr::rename(estimate     = .pred_TRUE, 
+                truth        = is_expensive)
 
 # Evaluate model (NOTE: we need different metrics since this is classification!)
 prediction %>%

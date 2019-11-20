@@ -5,6 +5,12 @@ library(skimr)
 library(readxl)
 library(recipes)
 library(rsample)
+library(dplyr)
+library(plyr)
+library(httr)
+library(rjstat)
+
+options(encoding="UTF-8")
 
 # Read all excel-files
 ads_raw <- read_excel("input/ads.xlsx")
@@ -26,15 +32,15 @@ ads <- ads_raw %>%
   left_join(municipalities, by = "ad_id") %>% 
   left_join(zip_raw, by = "ad_id") %>% 
   left_join(income, by = "zip_no") %>% 
-  left_join(att_raw, by = "ad_id") 
+  left_join(att_raw, by = "ad_id")
 
 # Remove unnecesarry objects
 rm(ads_raw, geo_raw, zip_raw, inc_raw, att_raw, income, municipalities)
 
 # Get a quick overview
 skimr::skim(ads)
-count(ads, ad_owner_type, sort = TRUE)
-count(ads, ad_home_type, sort = TRUE)
+dplyr::count(ads, ad_owner_type, sort = TRUE)
+dplyr::count(ads, ad_home_type, sort = TRUE)
 
 # Replace NA and modify variables
 ads <- ads %>%
@@ -44,6 +50,23 @@ ads <- ads %>%
     ad_tot_price         = ad_price + ad_debt,
     ad_tot_price_per_sqm = ad_tot_price / ad_sqm,
     ad_bedrooms          = parse_number(ad_bedrooms)
+  )
+
+#Det er flere rader med verdi "Fellesutg.:" som eierform og "kr" som boligform. Undersøker disse. Det er 78 slike rader.
+fellesutg <- subset(ads, ad_owner_type == "Fellesutg.:")
+
+sum(fellesutg$ad_debt) #Ingen i utvalget har gjeld
+sum(fellesutg$ad_expense) #Ingen i utvalget har felleskostnader
+mean(fellesutg$ad_sqm) #Gjennomsnittlig størrelse på bolig er 161 m2
+
+#Basert på at det ikke er gjeld eller felleskostnader på noen av datapunktene er det rimelig å anta at eierformen er "Eier (Selveier)"
+#Basert på at eierformen er selveier og at gjennomsnittlig m2 er 161 er det rimelig å anta at boligformen er enebolig eller tomannsbolig. Settes til enebolig for alle, da dette er den vanligste eierformen.
+#Samtlige datapunkter mangler antall soverom, dette tar xgBoost seg av håper jeg
+
+ads <- ads %>%
+  mutate(
+    ad_owner_type = revalue(ad_owner_type, c("Fellesutg.:" = "Eier (Selveier)")), 
+    ad_home_type = revalue(ad_home_type, c("kr" = "Enebolig"))
   )
 
 # Split in train/test
