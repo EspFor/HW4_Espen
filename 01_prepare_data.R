@@ -75,3 +75,4 @@ set.seed(42)
 finn_split     <- initial_split(ads)
 finn_train_raw <- training(finn_split)
 finn_test_raw  <- testing(finn_split)
+
